@@ -1,4 +1,6 @@
-# Catse_BlenderToHolo
+# Catse's BlenderToHolo Blender Plugin
 Catse's (https://steamcommunity.com/id/catse) Blender to Garry's Mod Expression 2 plugin
+
 steam community page: https://steamcommunity.com/groups/blendertoholo/
-an experimental version of Catse's plugin, exploring animation possibilities
+
+this is an experimental version of Catse's plugin, exploring animation possibilities
