@@ -39,14 +39,16 @@ class BLENDTOHOLO_OT_AddPrimitive(bpy.types.Operator):
     
     GarrysModMaterialName: bpy.props.StringProperty(name="Garry's Mod Material", description="Garry's Mod material name to be applied to the holo in the generated E2 script",default="engine/singlecolor")
 
+    originalSceneColorManagement: bpy.props.StringProperty(name="sceneColorManagement", default="")
+
+    matchGarrysModColorManagement: bpy.props.BoolProperty(name="Match Blender Scene to Garry's Mod Colors", description="If true, change the Blender scene view transform and gamma to be close to that of vanilla Garry's Mod",default=True)
+    
+
     def draw(self, context):
         layout = self.layout
         box = layout.box()
         box.prop(self, 'GarrysModMaterialName')
-        box = layout.box()
-        box.prop(self, 'align', expand=True)
-        box.prop(self, 'location', expand=True)
-        box.prop(self, 'rotation', expand=True)
+        box.prop(self, 'matchGarrysModColorManagement')
         
     
     def execute(self, context):
@@ -585,6 +587,15 @@ class BLENDTOHOLO_OT_AddPrimitive(bpy.types.Operator):
         holoMesh = bpy.data.meshes.new(holoMeshName)
         holoMesh.from_pydata(shapeVertexData,shapeEdgeData,shapeFaceData)
         holoMesh.update()
+        
+        #change Blender scene color management to match Garry's Mod, if permitted
+        if(self.matchGarrysModColorManagement == True):
+            bpy.context.scene.display_settings.display_device = "sRGB"
+            bpy.context.scene.view_settings.view_transform = "Standard"
+            bpy.context.scene.view_settings.look = "None"
+            bpy.context.scene.view_settings.exposure = 0
+            bpy.context.scene.view_settings.gamma = 0.5
+            bpy.context.scene.view_settings.use_curve_mapping = False
         
         #assign mesh data to new object
         holoObject = bpy.data.objects.new(holoObjectName,holoMesh)
