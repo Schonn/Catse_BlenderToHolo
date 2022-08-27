@@ -780,7 +780,8 @@ def getHoloScaleString(holoObject):
 #get current blender object color string
 def getHoloColorString(holoObject):
     holoObjectMaterialColor = holoObject.material_slots[0].material.node_tree.nodes["RGB"].outputs["Color"].default_value
-    return "vec(" + str(round(holoObjectMaterialColor[0]*300,3)) + "," + str(round(holoObjectMaterialColor[1]*300,3)) + "," + str(round(holoObjectMaterialColor[2]*300,3)) + ")"
+    colorMultiplier = 255
+    return "vec(" + str(round(holoObjectMaterialColor[0]*colorMultiplier,3)) + "," + str(round(holoObjectMaterialColor[1]*colorMultiplier,3)) + "," + str(round(holoObjectMaterialColor[2]*colorMultiplier,3)) + ")"
 
 #generate text file for use in Expression2
 def generateFile(operator):
