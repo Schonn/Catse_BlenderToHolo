@@ -789,8 +789,9 @@ def generateFile(operator):
     #add persistent holo index number variables
     for potentialBlenderHoloObject in bpy.context.scene.objects:
         if("E2HoloMeshType" in potentialBlenderHoloObject):
-            holoObjectsList.append(potentialBlenderHoloObject)
-            data += getPersistHoloIndexVariableName(potentialBlenderHoloObject.name) + " "
+            if(potentialBlenderHoloObject["E2HoloMeshType"] != "sizereference"):
+                holoObjectsList.append(potentialBlenderHoloObject)
+                data += getPersistHoloIndexVariableName(potentialBlenderHoloObject.name) + " "
     #remove last space from part names list and close, specifying that each is a number variable
     data = data[:-1]
     data += "]:number\n\n"
