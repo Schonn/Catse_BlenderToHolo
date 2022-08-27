@@ -594,7 +594,7 @@ class BLENDTOHOLO_OT_AddPrimitive(bpy.types.Operator):
             bpy.context.scene.view_settings.view_transform = "Standard"
             bpy.context.scene.view_settings.look = "None"
             bpy.context.scene.view_settings.exposure = 0
-            bpy.context.scene.view_settings.gamma = 0.5
+            bpy.context.scene.view_settings.gamma = 0.45
             bpy.context.scene.view_settings.use_curve_mapping = False
         
         #assign mesh data to new object
