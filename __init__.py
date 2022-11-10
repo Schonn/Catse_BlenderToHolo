@@ -21,7 +21,7 @@ bl_info = {
     "name": "Garry's Mod E2 Hologram Exporter",
     "author": "Catse (steamcommunity.com/id/catse), Wiremod Team, Pierre",
     "version": (1, 2, 3),
-    "blender": (3, 2, 1),
+    "blender": (3, 3, 1),
     "description": "Create and Export Objects from Blender as Wire Mod Expression2 Holograms for Garry's Mod",
     "wiki_url": "http://steamcommunity.com/groups/blendertoholo",
     "tracker_url": "http://steamcommunity.com/groups/blendertoholo/discussions",
@@ -806,7 +806,9 @@ def generateFile(operator):
                 data += getPersistHoloIndexVariableName(potentialBlenderHoloObject.name) + " "
     #remove last space from part names list and close, specifying that each is a number variable
     data = data[:-1]
-    data += "]:number\n\n"
+    data += "]:number\n"
+    #add batch holo shape load iteration variable
+    data += "@persist [HoloLoadIteration]:number\n\n"
     #add functions for local position and rotation
     data += (
     "#rotate a hologram (done in world space) using the rotation coordinates of the parent\n"
@@ -831,14 +833,35 @@ def generateFile(operator):
     "}\n\n"
     "#run when E2 is first created\n"
     "if(first()|dupefinished()){\n"
+    "    HoloLoadIteration=0\n"
+    "    timer(\"stepLoadHoloShapes\",10)\n"
+    "}\n\n"
+    "if( clk(\"stepLoadHoloShapes\") ) {\n"
+    "    switch(HoloLoadIteration){\n"
+    "        case(0),\n"
     )
+    #load in holo objects in batches with a tick delay
+    tickLoadedObjectsCount = 0
+    totalBatchesCount = 0
     for blenderHoloObject in holoObjectsList:
         holoObjectPositionString = getHoloLocationtring(blenderHoloObject)
         holoObjectRotationString = getHoloRotationString(blenderHoloObject)
         holoObjectScaleString = getHoloScaleString(blenderHoloObject)
         holoObjectColorString = getHoloColorString(blenderHoloObject)
-        data += "    " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(entity()," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
+        data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(entity()," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
+        tickLoadedObjectsCount += 1
+        if(tickLoadedObjectsCount > 10 and tickLoadedObjectsCount < len(holoObjectsList)):
+            totalBatchesCount += 1
+            data += (
+            "            timer(\"stepLoadHoloShapes\",10)\n"
+            "            break\n"
+            )
+            data += "        case(" + str(totalBatchesCount) + "),\n"
+            tickLoadedObjectsCount = 0
     data += (
+    "            break\n"
+    "    }\n"
+    "    HoloLoadIteration=HoloLoadIteration+1"
     "}\n"
     )
     file = open(operator.filepath, "w")
