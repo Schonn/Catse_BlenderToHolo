@@ -768,27 +768,29 @@ class VIEW3D_MT_mesh_e2holo_planes_add(Menu):
 def getPersistHoloIndexVariableName(holoObjectBlenderName):
     return holoObjectBlenderName.replace("_","").replace(".","").upper() + "Index"
 
-#get current blender object local rotation string
+#get blender object E2 equivalent rotation string
 def getHoloRotationString(holoObject):
     #to match Gmod's coordinate system as implemented by the Expression 2:
     #using the Blender 'interface' version of the local euler rotation for the object rotated by 90 degrees on Z, then:
     #Blender +X maps to Gmod +Z
     #Blender +Y maps to Gmod +X
     #Blender +Z maps to Gmod +Y
-    eulerRotation = holoObject.rotation_euler.copy() #make a copy of the interface euler rotation so the object rotation isn't altered in Blender
+    eulerRotation = holoObject.matrix_world.to_euler() #get the object world euler rotation
     eulerRotation.rotate_axis("Z",math.radians(90))
     return "ang(" + str(round(math.degrees(eulerRotation[1]),3)) + "," + str(round(math.degrees(eulerRotation[2]),3)) + "," + str(round(math.degrees(eulerRotation[0]),3)) + ")"
-#get current blender object location string
-def getHoloLocationtring(holoObject):
-    return "vec(" + str(round(holoObject.location[0],3)) + "," + str(round(holoObject.location[1],3)) + "," + str(round(holoObject.location[2],3)) + ")"
-#get current blender object scale string
+
+#get blender object E2 equivalent location string
+def getHoloLocationString(holoObject):
+    return "vec(" + str(round(holoObject.matrix_world.translation[0],3)) + "," + str(round(holoObject.matrix_world.translation[1],3)) + "," + str(round(holoObject.matrix_world.translation[2],3)) + ")"
+
+#get blender object E2 equivalent scale string
 def getHoloScaleString(holoObject):
     #scale mapping:
     #Blender +X maps to Gmod +Y
     #Blender +Y maps to Gmod +X
     #Blender +Z maps to Gmod +Z
-    return "vec(" + str(round(holoObject.scale[1],3)) + "," + str(round(holoObject.scale[0],3)) + "," + str(round(holoObject.scale[2],3)) + ")"
-#get current blender object color string
+    return "vec(" + str(round(holoObject.matrix_world.to_scale()[1],3)) + "," + str(round(holoObject.matrix_world.to_scale()[0],3)) + "," + str(round(holoObject.matrix_world.to_scale()[2],3)) + ")"
+#get blender object E2 equivalent color string
 def getHoloColorString(holoObject):
     holoObjectMaterialColor = holoObject.material_slots[0].material.node_tree.nodes["RGB"].outputs["Color"].default_value
     colorMultiplier = 255
@@ -807,8 +809,8 @@ def generateFile(operator):
     #remove last space from part names list and close, specifying that each is a number variable
     data = data[:-1]
     data += "]:number\n"
-    #add batch holo shape load iteration variable
-    data += "@persist [HoloLoadIteration]:number\n\n"
+    #add batch holo shape load iteration variable and animation frame variables
+    data += "@persist [HoloLoadIteration]:number [HoloCurrentFrameNumber]:number [HoloTotalFrames]:number\n\n"
     #add functions for local position and rotation
     data += (
     "#rotate a hologram (done in world space) using the rotation coordinates of the parent\n"
@@ -834,6 +836,10 @@ def generateFile(operator):
     "#run when E2 is first created\n"
     "if(first()|dupefinished()){\n"
     "    HoloLoadIteration=0\n"
+    "    HoloCurrentFrameNumber=0\n"
+    )
+    data += "    HoloTotalFrames=" + str(bpy.context.scene.frame_end) + "\n"
+    data += (
     "    timer(\"stepLoadHoloShapes\",10)\n"
     "}\n\n"
     "if( clk(\"stepLoadHoloShapes\") ) {\n"
@@ -843,12 +849,13 @@ def generateFile(operator):
     #load in holo objects in batches with a tick delay
     tickLoadedObjectsCount = 0
     totalBatchesCount = 0
+    holoParentEntityString = "entity()"
     for blenderHoloObject in holoObjectsList:
-        holoObjectPositionString = getHoloLocationtring(blenderHoloObject)
+        holoObjectPositionString = getHoloLocationString(blenderHoloObject)
         holoObjectRotationString = getHoloRotationString(blenderHoloObject)
         holoObjectScaleString = getHoloScaleString(blenderHoloObject)
         holoObjectColorString = getHoloColorString(blenderHoloObject)
-        data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(entity()," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
+        data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(" + holoParentEntityString + "," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
         tickLoadedObjectsCount += 1
         if(tickLoadedObjectsCount > 10 and tickLoadedObjectsCount < len(holoObjectsList)):
             totalBatchesCount += 1
@@ -859,11 +866,49 @@ def generateFile(operator):
             data += "        case(" + str(totalBatchesCount) + "),\n"
             tickLoadedObjectsCount = 0
     data += (
+    "            timer(\"stepHoloAnimation\",40)\n"
     "            break\n"
     "    }\n"
-    "    HoloLoadIteration=HoloLoadIteration+1"
-    "}\n"
+    "    HoloLoadIteration=HoloLoadIteration+1\n"
+    "}\n\n"
     )
+    #set up animation loop if available
+    frameSwitchCreated = False
+    frameSwitchCaseCreated = False
+    frameCaseStrings = {}
+    for blenderHoloObject in holoObjectsList:
+        if (blenderHoloObject.animation_data != None):
+            if (blenderHoloObject.animation_data.action != None):
+                if (blenderHoloObject.animation_data.action.fcurves[0] != None):
+                    #make animation frame switch statement if it doesn't exist
+                    if(frameSwitchCreated == False):
+                        data += (
+                        "if( clk(\"stepHoloAnimation\") ) {\n"
+                        "    switch(HoloCurrentFrameNumber){\n"
+                        )
+                        frameSwitchCreated = True
+                    for keyframePoint in blenderHoloObject.animation_data.action.fcurves[0].keyframe_points:
+                        bpy.context.scene.frame_set(int(keyframePoint.co.x))
+                        if((str(int(keyframePoint.co.x)) in frameCaseStrings) == False):
+                            frameCaseStrings[str(int(keyframePoint.co.x))] = "            case(" + str(int(keyframePoint.co.x)) + "),\n"
+                        holoObjectPositionString = getHoloLocationString(blenderHoloObject)
+                        holoObjectRotationString = getHoloRotationString(blenderHoloObject)
+                        holoObjectScaleString = getHoloScaleString(blenderHoloObject)
+                        holoObjectColorString = getHoloColorString(blenderHoloObject)
+                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
+                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
+    if(frameSwitchCreated == True):
+        for frameCaseStringKey in frameCaseStrings.keys():
+            data += frameCaseStrings[frameCaseStringKey] + "            break\n"
+        data += (
+        "    }\n"
+        "    HoloCurrentFrameNumber=HoloCurrentFrameNumber+1\n"
+        "    if( HoloCurrentFrameNumber > HoloTotalFrames ) {\n"
+        "        HoloCurrentFrameNumber=0\n"
+        "    }\n"
+        "    timer(\"stepHoloAnimation\",40)\n"
+        "}\n"
+        )
     file = open(operator.filepath, "w")
     file.write(data)
     file.close()
