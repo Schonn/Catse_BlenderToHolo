@@ -15,6 +15,7 @@ import bpy
 from bpy.types import Menu
 from bpy_extras.io_utils import ExportHelper
 import math
+import random
 
 #addon info read by Blender
 bl_info = {
@@ -764,6 +765,10 @@ class VIEW3D_MT_mesh_e2holo_planes_add(Menu):
         self.layout.operator(BLENDTOHOLO_OT_AddPrimitive.bl_idname, text ="Add Square Plane", icon="MESH_PLANE").shapeType = "plane"
         self.layout.operator(BLENDTOHOLO_OT_AddPrimitive.bl_idname, text ="Add Circular Plane", icon="MESH_CIRCLE").shapeType = "cplane"
 
+
+
+
+
 #get the name of the index persist variable for referring to the holo object in expression 2
 def getPersistHoloIndexVariableName(holoObjectBlenderName):
     return holoObjectBlenderName.replace("_","").replace(".","").upper() + "Index"
@@ -897,6 +902,13 @@ def generateFile(operator):
                         holoObjectColorString = getHoloColorString(blenderHoloObject)
                         frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
                         frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
+                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
+    #add sound emit events from timeline markers
+    for holoMarker in bpy.context.scene.timeline_markers:
+        emitObjectAndSound = holoMarker.name.split(",")
+        if(len(emitObjectAndSound) == 2):
+           frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,1,\"" + emitObjectAndSound[1] + "\")\n"
+           frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
     if(frameSwitchCreated == True):
         for frameCaseStringKey in frameCaseStrings.keys():
             data += frameCaseStrings[frameCaseStringKey] + "            break\n"
@@ -906,7 +918,7 @@ def generateFile(operator):
         "    if( HoloCurrentFrameNumber > HoloTotalFrames ) {\n"
         "        HoloCurrentFrameNumber=0\n"
         "    }\n"
-        "    timer(\"stepHoloAnimation\",40)\n"
+        "    timer(\"stepHoloAnimation\",60)\n"
         "}\n"
         )
     file = open(operator.filepath, "w")
@@ -931,6 +943,28 @@ class BLENDTOHOLO_OT_ExportExpression2(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+    
+
+class BLENDTOHOLO_OT_AddSoundMarker(bpy.types.Operator):
+    bl_idname = "e2holo.addsoundmarker"
+    bl_label = "Add E2 Sound Marker"
+    bl_description = "Add a marker to trigger a Garry's Mod sound to play from a holo object"
+    
+    soundName: bpy.props.StringProperty(name="soundPathString",description="Garry's Mod sound name to be played from the selected object at the current frame",default="garrysmod/balloon_pop_cute.wav")
+    
+    def execute(self, context):
+        soundPathName = self.soundName
+        if(bpy.context.active_object != None):
+            if("E2HoloMeshType" in bpy.context.active_object == False):
+                self.report({'WARNING'},"The active object has no E2 holo data. Please choose one with E2 holo data to play this sound from")
+            else:
+                bpy.context.scene.timeline_markers.new(name=bpy.context.active_object.name + "," + soundPathName, frame=bpy.context.scene.frame_current)
+                self.report({'INFO'},"Created E2 Holo play sound marker at frame " + str(bpy.context.scene.frame_current) + " for holo object " + bpy.context.active_object.name)
+        else:
+            self.report({'WARNING'},"Please select an object with E2 holo data to play this sound from")
+        return {"FINISHED"}
+    
+
 
 def blendtoholo_ExportMenuDefinition(self, context):
     self.layout.operator_context = 'INVOKE_DEFAULT'
@@ -940,6 +974,39 @@ def blendtoholo_MeshMenuDefinition(self, context):
     self.layout.operator_context = 'INVOKE_REGION_WIN'
     self.layout.separator()
     self.layout.menu("VIEW3D_MT_mesh_e2holo_add", text="Garry's Mod E2 Holo Shapes", icon="EVENT_G")
+
+
+#add E2 holo sound timeline marker top menu
+class DOPESHEET_MT_marker_e2sound_add(Menu):
+    bl_idname = "DOPESHEET_MT_marker_e2sound_add"
+    bl_label = "Add Garry's Mod E2 Sound Marker"
+
+    def draw(self, context):
+        self.layout.operator_context = 'INVOKE_REGION_WIN'
+        self.layout.menu("DOPESHEET_MT_marker_e2sound_physics_add", text="Physics Sounds")
+
+#add E2 holo sound timeline marker physics submenu
+class DOPESHEET_MT_marker_e2sound_physics_add(Menu):
+    bl_idname = "DOPESHEET_MT_marker_e2sound_physics_add"
+    bl_label = "Physics Sounds"
+
+    def draw(self, context):
+        self.layout.operator_context = 'INVOKE_REGION_WIN'
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Ragdoll Break").soundName = "physics/body/body_medium_break" + str(random.randint(1,3)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Ragdoll Hard Impact").soundName = "physics/body/body_medium_impact_hard" + str(random.randint(1,6)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Ragdoll Soft Impact").soundName = "physics/body/body_medium_impact_soft" + str(random.randint(1,7)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Ragdoll Scrape Loop").soundName = "physics/body/body_medium_scrape_rough_loop1.wav"
+        
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Cardboard Break").soundName = "physics/cardboard/cardboard_box_break" + str(random.randint(1,3)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Cardboard Hard Impact").soundName = "physics/cardboard/cardboard_box_impact_hard" + str(random.randint(1,7)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Cardboard Soft Impact").soundName = "physics/cardboard/cardboard_box_impact_soft" + str(random.randint(1,7)) + ".wav"
+        self.layout.operator(BLENDTOHOLO_OT_AddSoundMarker.bl_idname, text="Cardboard Scrape Loop").soundName = "physics/cardboard/cardboard_box_scrape_rough_loop1.wav"
+        
+
+def blendtoholo_MarkerMenuDefinition(self, context):
+    self.layout.operator_context = 'INVOKE_REGION_WIN'
+    self.layout.menu("DOPESHEET_MT_marker_e2sound_add", text="Add Garry's Mod E2 Sound Marker", icon="EVENT_G")
+    self.layout.separator()
 
 
 #classes to register or unregister for addon
@@ -953,7 +1020,10 @@ classesToRegister = (
     VIEW3D_MT_mesh_e2holo_toruses_add,
     VIEW3D_MT_mesh_e2holo_tapered_add,
     VIEW3D_MT_mesh_e2holo_planes_add,
+    DOPESHEET_MT_marker_e2sound_add,
+    DOPESHEET_MT_marker_e2sound_physics_add,
     BLENDTOHOLO_OT_AddPrimitive,
+    BLENDTOHOLO_OT_AddSoundMarker,
     BLENDTOHOLO_OT_ExportExpression2
 )
 
@@ -964,11 +1034,13 @@ def register():
 
     bpy.types.VIEW3D_MT_mesh_add.append(blendtoholo_MeshMenuDefinition)
     bpy.types.TOPBAR_MT_file_export.append(blendtoholo_ExportMenuDefinition)
+    bpy.types.DOPESHEET_MT_marker.append(blendtoholo_MarkerMenuDefinition)
 
 #function for unregistering classes when disabling addon
 def unregister():
     bpy.types.VIEW3D_MT_mesh_add.remove(blendtoholo_MeshMenuDefinition)
     bpy.types.TOPBAR_MT_file_export.remove(blendtoholo_ExportMenuDefinition)
+    bpy.types.DOPESHEET_MT_marker.remove(blendtoholo_MarkerMenuDefinition)
 
     for unregisteringClass in reversed(classesToRegister):
         bpy.utils.unregister_class(unregisteringClass)
