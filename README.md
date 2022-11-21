@@ -15,4 +15,4 @@ Sound events can be added by selecting the holo object to emit the sound in Blen
 
 The holos in the current scene, sound events and the animation timeline/action can be exported to Garry's Mod E2 .txt with File > Export > Garry's Mod E2 Holograms.
 
-A keyframe for a holo will only be added to the E2 script if the Blender holo object has a keyframe for that frame.
+Keyframes will be recorded in world coordinates based on any difference in location/rotation/scale, so you can constrain and parent holo objects in Blender to armatures and it should still export as expected.
