@@ -924,9 +924,7 @@ def generateFile(operator):
                     frameCaseStrings[str(frameNumber)] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
                 if(holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"]):
                     frameCaseStrings[str(frameNumber)] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
-                
-                print(blenderHoloObject["E2PreviousScaleString"])
-                
+                      
                 #update record of differences for object
                 blenderHoloObject["E2PreviousPositionString"] = holoObjectPositionString
                 blenderHoloObject["E2PreviousRotationString"] = holoObjectRotationString
