@@ -879,30 +879,62 @@ def generateFile(operator):
     )
     #set up animation loop if available
     frameSwitchCreated = False
-    frameSwitchCaseCreated = False
     frameCaseStrings = {}
-    for blenderHoloObject in holoObjectsList:
-        if (blenderHoloObject.animation_data != None):
-            if (blenderHoloObject.animation_data.action != None):
-                if (blenderHoloObject.animation_data.action.fcurves[0] != None):
-                    #make animation frame switch statement if it doesn't exist
-                    if(frameSwitchCreated == False):
-                        data += (
-                        "if( clk(\"stepHoloAnimation\") ) {\n"
-                        "    switch(HoloCurrentFrameNumber){\n"
-                        )
-                        frameSwitchCreated = True
-                    for keyframePoint in blenderHoloObject.animation_data.action.fcurves[0].keyframe_points:
-                        bpy.context.scene.frame_set(int(keyframePoint.co.x))
-                        if((str(int(keyframePoint.co.x)) in frameCaseStrings) == False):
-                            frameCaseStrings[str(int(keyframePoint.co.x))] = "            case(" + str(int(keyframePoint.co.x)) + "),\n"
-                        holoObjectPositionString = getHoloLocationString(blenderHoloObject)
-                        holoObjectRotationString = getHoloRotationString(blenderHoloObject)
-                        holoObjectScaleString = getHoloScaleString(blenderHoloObject)
-                        holoObjectColorString = getHoloColorString(blenderHoloObject)
-                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
-                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
-                        frameCaseStrings[str(int(keyframePoint.co.x))] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
+    frameHasKeyframes = False
+    for frameNumber in range(bpy.context.scene.frame_start,bpy.context.scene.frame_end+1):
+        frameHasKeyframes = False
+        bpy.context.scene.frame_set(frameNumber)
+        for blenderHoloObject in holoObjectsList:
+            #record everything on frame 1
+            if (frameNumber == bpy.context.scene.frame_start):
+                blenderHoloObject["E2PreviousPositionString"] = "None"
+                blenderHoloObject["E2PreviousRotationString"] = "None"
+                blenderHoloObject["E2PreviousScaleString"] = "None"
+                blenderHoloObject["E2PreviousColorString"] = "None"
+            
+            holoObjectPositionString = getHoloLocationString(blenderHoloObject)
+            holoObjectRotationString = getHoloRotationString(blenderHoloObject)
+            holoObjectScaleString = getHoloScaleString(blenderHoloObject)
+            holoObjectColorString = getHoloColorString(blenderHoloObject)
+            
+            #determine if a keyframe should be recorded in E2 script at all
+            if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"] or
+                holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"] or
+                holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"] or
+                holoObjectColorString != blenderHoloObject["E2PreviousColorString"]):
+                    frameHasKeyframes = True
+            
+            if(frameHasKeyframes == True):
+                #make animation frame switch statement if it doesn't exist
+                if(frameSwitchCreated == False):
+                    data += (
+                    "if( clk(\"stepHoloAnimation\") ) {\n"
+                    "    switch(HoloCurrentFrameNumber){\n"
+                    )
+                    frameSwitchCreated = True
+                
+                #make switch case for this frame
+                if((str(frameNumber) in frameCaseStrings) == False):
+                    frameCaseStrings[str(frameNumber)] = "            case(" + str(frameNumber) + "),\n"
+                
+                #only create E2 lines for differences
+                if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"]):
+                    frameCaseStrings[str(frameNumber)] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
+                if(holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"]):
+                    frameCaseStrings[str(frameNumber)] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
+                if(holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"]):
+                    frameCaseStrings[str(frameNumber)] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
+                
+                print(blenderHoloObject["E2PreviousScaleString"])
+                
+                #update record of differences for object
+                blenderHoloObject["E2PreviousPositionString"] = holoObjectPositionString
+                blenderHoloObject["E2PreviousRotationString"] = holoObjectRotationString
+                blenderHoloObject["E2PreviousScaleString"] = holoObjectScaleString
+                blenderHoloObject["E2PreviousColorString"] = holoObjectColorString
+                
+                
+
     #add sound emit events from timeline markers
     for holoMarker in bpy.context.scene.timeline_markers:
         emitObjectAndSound = holoMarker.name.split(",")
@@ -955,7 +987,7 @@ class BLENDTOHOLO_OT_AddSoundMarker(bpy.types.Operator):
     def execute(self, context):
         soundPathName = self.soundName
         if(bpy.context.active_object != None):
-            if("E2HoloMeshType" in bpy.context.active_object == False):
+            if(("E2HoloMeshType" in bpy.context.active_object) == False):
                 self.report({'WARNING'},"The active object has no E2 holo data. Please choose one with E2 holo data to play this sound from")
             else:
                 bpy.context.scene.timeline_markers.new(name=bpy.context.active_object.name + "," + soundPathName, frame=bpy.context.scene.frame_current)
