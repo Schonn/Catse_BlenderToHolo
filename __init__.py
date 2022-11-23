@@ -845,7 +845,7 @@ def generateFile(operator):
     )
     data += "    HoloTotalFrames=" + str(bpy.context.scene.frame_end) + "\n"
     data += (
-    "    timer(\"stepLoadHoloShapes\",10)\n"
+    "    timer(\"stepLoadHoloShapes\",350)\n"
     "}\n\n"
     "if( clk(\"stepLoadHoloShapes\") ) {\n"
     "    switch(HoloLoadIteration){\n"
@@ -862,10 +862,10 @@ def generateFile(operator):
         holoObjectColorString = getHoloColorString(blenderHoloObject)
         data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(" + holoParentEntityString + "," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
         tickLoadedObjectsCount += 1
-        if(tickLoadedObjectsCount > 10 and tickLoadedObjectsCount < len(holoObjectsList)):
+        if(tickLoadedObjectsCount > 1 and tickLoadedObjectsCount < len(holoObjectsList)):
             totalBatchesCount += 1
             data += (
-            "            timer(\"stepLoadHoloShapes\",10)\n"
+            "            timer(\"stepLoadHoloShapes\",350)\n"
             "            break\n"
             )
             data += "        case(" + str(totalBatchesCount) + "),\n"
@@ -924,7 +924,7 @@ def generateFile(operator):
                     frameCaseStrings[str(frameNumber)] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
                 if(holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"]):
                     frameCaseStrings[str(frameNumber)] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
-                      
+                
                 #update record of differences for object
                 blenderHoloObject["E2PreviousPositionString"] = holoObjectPositionString
                 blenderHoloObject["E2PreviousRotationString"] = holoObjectRotationString
