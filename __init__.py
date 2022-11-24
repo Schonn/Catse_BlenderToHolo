@@ -597,7 +597,7 @@ class BLENDTOHOLO_OT_AddPrimitive(bpy.types.Operator):
             bpy.context.scene.view_settings.exposure = 0
             bpy.context.scene.view_settings.gamma = 0.45
             bpy.context.scene.view_settings.use_curve_mapping = False
-        
+            
         #assign mesh data to new object
         holoObject = bpy.data.objects.new(holoObjectName,holoMesh)
         #add object to scene at 3d cursor
@@ -845,7 +845,7 @@ def generateFile(operator):
     )
     data += "    HoloTotalFrames=" + str(bpy.context.scene.frame_end) + "\n"
     data += (
-    "    timer(\"stepLoadHoloShapes\",350)\n"
+    "    timer(\"stepLoadHoloShapes\",30)\n"
     "}\n\n"
     "if( clk(\"stepLoadHoloShapes\") ) {\n"
     "    switch(HoloLoadIteration){\n"
@@ -862,7 +862,7 @@ def generateFile(operator):
         holoObjectColorString = getHoloColorString(blenderHoloObject)
         data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(" + holoParentEntityString + "," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
         tickLoadedObjectsCount += 1
-        if(tickLoadedObjectsCount > 1 and tickLoadedObjectsCount < len(holoObjectsList)):
+        if(tickLoadedObjectsCount > 5 and tickLoadedObjectsCount < len(holoObjectsList)):
             totalBatchesCount += 1
             data += (
             "            timer(\"stepLoadHoloShapes\",350)\n"
@@ -937,7 +937,7 @@ def generateFile(operator):
     for holoMarker in bpy.context.scene.timeline_markers:
         emitObjectAndSound = holoMarker.name.split(",")
         if(len(emitObjectAndSound) == 2):
-           frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,1,\"" + emitObjectAndSound[1] + "\")\n"
+           frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,500,\"" + emitObjectAndSound[1] + "\")\n"
            frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
     if(frameSwitchCreated == True):
         for frameCaseStringKey in frameCaseStrings.keys():
@@ -948,9 +948,8 @@ def generateFile(operator):
         "    if( HoloCurrentFrameNumber > HoloTotalFrames ) {\n"
         "        HoloCurrentFrameNumber=0\n"
         "    }\n"
-        "    timer(\"stepHoloAnimation\",60)\n"
-        "}\n"
         )
+        data += "    timer(\"stepHoloAnimation\"," + str(int((1/bpy.context.scene.render.fps)*1000)-10) + ")\n}\n"
     file = open(operator.filepath, "w")
     file.write(data)
     file.close()
