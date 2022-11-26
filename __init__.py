@@ -862,10 +862,10 @@ def generateFile(operator):
         holoObjectColorString = getHoloColorString(blenderHoloObject)
         data += "            " + getPersistHoloIndexVariableName(blenderHoloObject.name) + " = holoRelativeToObject(" + holoParentEntityString + "," + holoObjectPositionString + "," + holoObjectScaleString + "," + holoObjectRotationString + "," + holoObjectColorString + ",\"" + blenderHoloObject["E2HoloMeshType"] + "\",\"" + blenderHoloObject["E2HoloMaterialName"] + "\")\n"
         tickLoadedObjectsCount += 1
-        if(tickLoadedObjectsCount > 5 and tickLoadedObjectsCount < len(holoObjectsList)):
+        if(tickLoadedObjectsCount > 8 and tickLoadedObjectsCount < len(holoObjectsList)):
             totalBatchesCount += 1
             data += (
-            "            timer(\"stepLoadHoloShapes\",350)\n"
+            "            timer(\"stepLoadHoloShapes\",1500)\n"
             "            break\n"
             )
             data += "        case(" + str(totalBatchesCount) + "),\n"
