@@ -807,7 +807,12 @@ def generateFile(operator):
     data = "@persist ["
     #add persistent holo index number variables
     for potentialBlenderHoloObject in bpy.context.scene.objects:
-        if("E2HoloMeshType" in potentialBlenderHoloObject):
+        canAddHoloObject = True
+        if((operator.properties.exportSelected == True) and (potentialBlenderHoloObject.select_get() == False)):
+            canAddHoloObject = False
+        if(("E2HoloMeshType" in potentialBlenderHoloObject) == False):
+            canAddHoloObject = False
+        if(canAddHoloObject == True):
             if(potentialBlenderHoloObject["E2HoloMeshType"] != "sizereference"):
                 holoObjectsList.append(potentialBlenderHoloObject)
                 data += getPersistHoloIndexVariableName(potentialBlenderHoloObject.name) + " "
@@ -938,8 +943,11 @@ def generateFile(operator):
         for holoMarker in bpy.context.scene.timeline_markers:
             emitObjectAndSound = holoMarker.name.split(",")
             if(len(emitObjectAndSound) == 2):
-               frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,500,\"" + emitObjectAndSound[1] + "\")\n"
-               frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
+                if(emitObjectAndSound[0] in bpy.context.scene.objects):
+                    soundEmitObject = bpy.context.scene.objects[emitObjectAndSound[0]]
+                    if(soundEmitObject in holoObjectsList):
+                        frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,500,\"" + emitObjectAndSound[1] + "\")\n"
+                        frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
         if(frameSwitchCreated == True):
             for frameCaseStringKey in frameCaseStrings.keys():
                 data += frameCaseStrings[frameCaseStringKey] + "            break\n"
@@ -971,6 +979,10 @@ class BLENDTOHOLO_OT_ExportExpression2(bpy.types.Operator, ExportHelper):
         name="Export Animation",
         description="When checked, exports the scene animation in the E2 holo script",
         default=True,)
+    exportSelected: bpy.props.BoolProperty(
+        name="Export Selected Only",
+        description="When checked, only includes the selected objects in the E2 holo script",
+        default=False,)
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
     def execute(self, context):
         generateFile(self)
