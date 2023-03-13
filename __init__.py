@@ -877,79 +877,81 @@ def generateFile(operator):
     "    HoloLoadIteration=HoloLoadIteration+1\n"
     "}\n\n"
     )
-    #set up animation loop if available
-    frameSwitchCreated = False
-    frameCaseStrings = {}
-    frameHasKeyframes = False
-    for frameNumber in range(bpy.context.scene.frame_start,bpy.context.scene.frame_end+1):
+    if(operator.properties.exportAnimation == True):
+        #set up animation loop if available
+        frameSwitchCreated = False
+        frameCaseStrings = {}
         frameHasKeyframes = False
-        bpy.context.scene.frame_set(frameNumber)
-        for blenderHoloObject in holoObjectsList:
-            #record everything on frame 1
-            if (frameNumber == bpy.context.scene.frame_start):
-                blenderHoloObject["E2PreviousPositionString"] = "None"
-                blenderHoloObject["E2PreviousRotationString"] = "None"
-                blenderHoloObject["E2PreviousScaleString"] = "None"
-                blenderHoloObject["E2PreviousColorString"] = "None"
-            
-            holoObjectPositionString = getHoloLocationString(blenderHoloObject)
-            holoObjectRotationString = getHoloRotationString(blenderHoloObject)
-            holoObjectScaleString = getHoloScaleString(blenderHoloObject)
-            holoObjectColorString = getHoloColorString(blenderHoloObject)
-            
-            #determine if a keyframe should be recorded in E2 script at all
-            if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"] or
-                holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"] or
-                holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"] or
-                holoObjectColorString != blenderHoloObject["E2PreviousColorString"]):
-                    frameHasKeyframes = True
-            
-            if(frameHasKeyframes == True):
-                #make animation frame switch statement if it doesn't exist
-                if(frameSwitchCreated == False):
-                    data += (
-                    "if( clk(\"stepHoloAnimation\") ) {\n"
-                    "    switch(HoloCurrentFrameNumber){\n"
-                    )
-                    frameSwitchCreated = True
+        for frameNumber in range(bpy.context.scene.frame_start,bpy.context.scene.frame_end+1):
+            frameHasKeyframes = False
+            bpy.context.scene.frame_set(frameNumber)
+            for blenderHoloObject in holoObjectsList:
+                #record everything on frame 1
+                if (frameNumber == bpy.context.scene.frame_start):
+                    blenderHoloObject["E2PreviousPositionString"] = "None"
+                    blenderHoloObject["E2PreviousRotationString"] = "None"
+                    blenderHoloObject["E2PreviousScaleString"] = "None"
+                    blenderHoloObject["E2PreviousColorString"] = "None"
                 
-                #make switch case for this frame
-                if((str(frameNumber) in frameCaseStrings) == False):
-                    frameCaseStrings[str(frameNumber)] = "            case(" + str(frameNumber) + "),\n"
+                holoObjectPositionString = getHoloLocationString(blenderHoloObject)
+                holoObjectRotationString = getHoloRotationString(blenderHoloObject)
+                holoObjectScaleString = getHoloScaleString(blenderHoloObject)
+                holoObjectColorString = getHoloColorString(blenderHoloObject)
                 
-                #only create E2 lines for differences
-                if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"]):
-                    frameCaseStrings[str(frameNumber)] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
-                if(holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"]):
-                    frameCaseStrings[str(frameNumber)] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
-                if(holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"]):
-                    frameCaseStrings[str(frameNumber)] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
+                #determine if a keyframe should be recorded in E2 script at all
+                if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"] or
+                    holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"] or
+                    holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"] or
+                    holoObjectColorString != blenderHoloObject["E2PreviousColorString"]):
+                        frameHasKeyframes = True
                 
-                #update record of differences for object
-                blenderHoloObject["E2PreviousPositionString"] = holoObjectPositionString
-                blenderHoloObject["E2PreviousRotationString"] = holoObjectRotationString
-                blenderHoloObject["E2PreviousScaleString"] = holoObjectScaleString
-                blenderHoloObject["E2PreviousColorString"] = holoObjectColorString
-                
-                
+                if(frameHasKeyframes == True):
+                    #make animation frame switch statement if it doesn't exist
+                    if(frameSwitchCreated == False):
+                        data += (
+                        "if( clk(\"stepHoloAnimation\") ) {\n"
+                        "    switch(HoloCurrentFrameNumber){\n"
+                        )
+                        frameSwitchCreated = True
+                    
+                    #make switch case for this frame
+                    if((str(frameNumber) in frameCaseStrings) == False):
+                        frameCaseStrings[str(frameNumber)] = "            case(" + str(frameNumber) + "),\n"
+                    
+                    #only create E2 lines for differences
+                    if(holoObjectPositionString != blenderHoloObject["E2PreviousPositionString"]):
+                        frameCaseStrings[str(frameNumber)] += "                holoPositionRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectPositionString + ")\n"
+                    if(holoObjectRotationString != blenderHoloObject["E2PreviousRotationString"]):
+                        frameCaseStrings[str(frameNumber)] += "                holoRotateRelativeToParent(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoParentEntityString + "," + holoObjectRotationString + ")\n"
+                    if(holoObjectScaleString != blenderHoloObject["E2PreviousScaleString"]):
+                        frameCaseStrings[str(frameNumber)] += "                holoScale(" + getPersistHoloIndexVariableName(blenderHoloObject.name) + "," + holoObjectScaleString + ")\n"
+                    
+                    #update record of differences for object
+                    blenderHoloObject["E2PreviousPositionString"] = holoObjectPositionString
+                    blenderHoloObject["E2PreviousRotationString"] = holoObjectRotationString
+                    blenderHoloObject["E2PreviousScaleString"] = holoObjectScaleString
+                    blenderHoloObject["E2PreviousColorString"] = holoObjectColorString
+                    
+                    
 
-    #add sound emit events from timeline markers
-    for holoMarker in bpy.context.scene.timeline_markers:
-        emitObjectAndSound = holoMarker.name.split(",")
-        if(len(emitObjectAndSound) == 2):
-           frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,500,\"" + emitObjectAndSound[1] + "\")\n"
-           frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
-    if(frameSwitchCreated == True):
-        for frameCaseStringKey in frameCaseStrings.keys():
-            data += frameCaseStrings[frameCaseStringKey] + "            break\n"
-        data += (
-        "    }\n"
-        "    HoloCurrentFrameNumber=HoloCurrentFrameNumber+1\n"
-        "    if( HoloCurrentFrameNumber > HoloTotalFrames ) {\n"
-        "        HoloCurrentFrameNumber=0\n"
-        "    }\n"
-        )
-        data += "    timer(\"stepHoloAnimation\"," + str(int((1/bpy.context.scene.render.fps)*1000)-10) + ")\n}\n"
+        #add sound emit events from timeline markers
+        for holoMarker in bpy.context.scene.timeline_markers:
+            emitObjectAndSound = holoMarker.name.split(",")
+            if(len(emitObjectAndSound) == 2):
+               frameCaseStrings[str(int(holoMarker.frame))] += "                holoEntity(" + getPersistHoloIndexVariableName(emitObjectAndSound[0]) + "):soundPlay(1,500,\"" + emitObjectAndSound[1] + "\")\n"
+               frameCaseStrings[str(int(holoMarker.frame))] += "                soundVolume(1,0.5)\n" 
+        if(frameSwitchCreated == True):
+            for frameCaseStringKey in frameCaseStrings.keys():
+                data += frameCaseStrings[frameCaseStringKey] + "            break\n"
+            data += (
+            "    }\n"
+            "    HoloCurrentFrameNumber=HoloCurrentFrameNumber+1\n"
+            "    if( HoloCurrentFrameNumber > HoloTotalFrames ) {\n"
+            "        HoloCurrentFrameNumber=0\n"
+            "    }\n"
+            )
+            data += "    timer(\"stepHoloAnimation\"," + str(int((1/bpy.context.scene.render.fps)*1000)-10) + ")\n}\n"
+    
     file = open(operator.filepath, "w")
     file.write(data)
     file.close()
@@ -965,6 +967,10 @@ class BLENDTOHOLO_OT_ExportExpression2(bpy.types.Operator, ExportHelper):
             default="*.txt",
             options={'HIDDEN'},
             )
+    exportAnimation: bpy.props.BoolProperty(
+        name="Export Animation",
+        description="When checked, exports the scene animation in the E2 holo script",
+        default=True,)
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
     def execute(self, context):
         generateFile(self)
